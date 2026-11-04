@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Clube do Livro</title>
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+  <meta name="theme-color" content="#E8223F">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icone-180.png') }}">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Clube do Livro">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Dancing+Script:wght@600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="tela-entrada">
+  <div class="card entrada">
+    <p class="marca">Clube do Livro</p>
+    {% if erro %}<p class="erro">{{ erro }}</p>{% endif %}
+    <form method="post">
+      <input name="nome" placeholder="Seu nome" required>
+      <input name="codigo" type="password" placeholder="Código do clube" required>
+      <button type="submit" class="botao cheio">Entrar</button>
+    </form>
+  </div>
+    <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js"));
+    }
+  </script>
+</body>
+</html>

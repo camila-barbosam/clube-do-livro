@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<div class="card">
+  <h2>Votação do próximo livro</h2>
+  <p id="resumo-votos" class="status"></p>
+  <p id="v-aviso" class="aviso"></p>
+  <div id="lista-votos"></div>
+  <button type="button" id="encerrar" class="botao cheio oculto" style="margin-top: 16px;">Encerrar votação e escolher o livro</button>
+</div>
+
+<script>
+const lista = document.getElementById("lista-votos");
+const resumoVotos = document.getElementById("resumo-votos");
+const vAviso = document.getElementById("v-aviso");
+const encerrar = document.getElementById("encerrar");
+let avisoTimer;
+
+function avisar(msg) {
+  vAviso.textContent = msg;
+  clearTimeout(avisoTimer);
+  avisoTimer = setTimeout(() => { vAviso.textContent = ""; }, 4000);
+}
+
+function montarCapa(url, titulo) {
+  const capa = document.createElement("div");
+  capa.className = "capa-resultado";
+  if (url) {
+    const img = document.createElement("img");
+    img.src = url;
+    img.alt = "Capa de " + titulo;
+    img.loading = "lazy";
+    capa.appendChild(img);
+  } else {
+    capa.textContent = "📖";
+  }
+  return capa;
+}
+
+function montarInfo(l) {
+  const info = document.createElement("div");
+  const titulo = document.createElement("strong");
+  titulo.textContent = l.titulo;
+  const autor = document.createElement("p");
+  autor.className = "autor";
+  autor.textContent = l.autor;
+  const pag = document.createElement("p");
+  pag.className = "paginas";
+  pag.textContent = l.paginas ? l.paginas + " páginas" : "Páginas não informadas";
+  info.append(titulo, autor, pag);
+  if (l.resumo) {
+    const det = document.createElement("details");
+    const sum = document.createElement("summary");
+    sum.textContent = "Ver resumo";
+    const txt = document.createElement("p");
+    txt.textContent = l.resumo;
+    det.append(sum, txt);
+    info.appendChild(det);
+  }
+  return info;
+}
+
+function cartao(s, meuVoto) {
+  const c = document.createElement("div");
+  c.className = "resultado";
+  const info = montarInfo(s);
+
+  const por = document.createElement("p");
+  por.className = "por";
+  por.textContent = "Sugerido por " + s.por;
+  const votos = document.createElement("p");
+  votos.className = "votos";
+  votos.textContent = "💗 " + s.votos + (s.votos === 1 ? " voto" : " votos");
+
+  const botao = document.createElement("button");
+  botao.type = "button";
+  const meu = meuVoto === s.id;
+  botao.className = meu ? "botao cheio mini" : "botao mini";
+  botao.textContent = meu ? "Seu voto ✓" : "Votar";
+  botao.addEventListener("click", () => votar(s.id, botao));
+
+  info.append(por, votos, botao);
+  c.append(montarCapa(s.capa, s.titulo), info);
+  return c;
+}
+
+async function carregar() {
+  try {
+    const resp = await fetch("/votacao/dados");
+    const dados = await resp.json();
+    if (!resp.ok) { resumoVotos.textContent = dados.erro || "Algo deu errado."; return; }
+    lista.replaceChildren();
+    resumoVotos.textContent = dados.votaram + " de " + dados.total + " já votaram";
+    if (dados.sugestoes.length === 0) {
+      const p = document.createElement("p");
+      p.textContent = "Ainda não tem sugestões. Vá na aba Sugestões e escolha até 3 livros.";
+      lista.appendChild(p);
+    }
+    dados.sugestoes.forEach(s => lista.appendChild(cartao(s, dados.meu_voto)));
+    encerrar.classList.toggle("oculto", !(dados.admin && dados.sugestoes.length > 0));
+  } catch (e) {
+    resumoVotos.textContent = "Sem conexão com o servidor.";
+  }
+}
+
+async function votar(id, botao) {
+  botao.disabled = true;
+  try {
+    const resp = await fetch("/votacao/votar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sugestao_id: id }),
+    });
+    const dados = await resp.json();
+    if (!resp.ok) avisar(dados.erro || "Algo deu errado.");
+  } catch (e) {
+    avisar("Sem conexão com o servidor.");
+  }
+  await carregar();
+}
+
+encerrar.addEventListener("click", async () => {
+  if (!confirm("Encerrar a votação e escolher o livro mais votado?")) return;
+  encerrar.disabled = true;
+  try {
+    const resp = await fetch("/votacao/encerrar", { method: "POST" });
+    const dados = await resp.json();
+    if (resp.ok) { window.location.href = "/"; return; }
+    avisar(dados.erro || "Algo deu errado.");
+  } catch (e) {
+    avisar("Sem conexão com o servidor.");
+  }
+  encerrar.disabled = false;
+});
+
+carregar();
+</script>
+{% endblock %}

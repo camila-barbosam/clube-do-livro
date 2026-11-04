@@ -1,0 +1,279 @@
+:root {
+  --fundo: #FFF1F4;
+  --rosa: #F8C9D4;
+  --rosa-forte: #F2A0B6;
+  --vermelho: #E8223F;
+  --lilas: #D9C2F0;
+  --texto: #4A2B35;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--fundo); color: var(--texto);
+  font-family: "Montserrat", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  padding-bottom: 90px;
+}
+
+/* faixa vermelha que rola */
+.faixa { background: var(--vermelho); color: white; overflow: hidden; white-space: nowrap; padding: 8px 0; }
+.faixa-texto { display: inline-block; padding-left: 100%; animation: rolar 20s linear infinite; font-size: 16px; }
+@keyframes rolar { to { transform: translateX(-100%); } }
+
+/* topo */
+.topo { background: white; text-align: center; padding: 14px 16px 10px; border-bottom: 1px solid var(--rosa); }
+.topo .laco { display: block; margin: 0 auto -4px; }
+.topo .marca { font-family: "Dancing Script", cursive; font-size: 36px; color: var(--vermelho); margin: 0; line-height: 1.1; }
+.topo small { letter-spacing: 0.25em; font-size: 10px; text-transform: uppercase; color: var(--rosa-forte); }
+
+.conteudo { max-width: 640px; margin: 0 auto; }
+
+/* destaque com listras */
+.hero {
+  text-align: center; padding: 30px 20px 36px;
+  background-image: repeating-linear-gradient(90deg, white 0 14px, #FFE4EA 14px 28px);
+}
+.hero h1 { font-size: 28px; font-weight: 700; margin: 0 0 8px; }
+.hero h1 em {
+  font-family: "Dancing Script", cursive; font-style: normal; font-weight: 600;
+  font-size: 40px; color: var(--vermelho); display: block;
+}
+.hero p { margin: 0 auto 18px; max-width: 420px; font-size: 15px; line-height: 1.5; }
+
+.livro-destaque {
+  display: flex; gap: 16px; align-items: center; text-align: left;
+  background: white; border: 1px solid var(--rosa-forte); padding: 16px; margin: 0 20px 6px;
+}
+.livro-destaque strong { font-weight: 700; }
+.capa {
+  width: 84px; height: 124px; flex-shrink: 0; background: var(--rosa);
+  display: flex; align-items: center; justify-content: center; font-size: 34px;
+  border: 1px solid var(--rosa-forte);
+}
+
+/* botões */
+.botao {
+  display: inline-block; font-family: inherit; font-size: 12px; letter-spacing: 0.15em;
+  text-transform: uppercase; text-decoration: none; padding: 12px 22px; cursor: pointer;
+  border: 1.5px solid var(--vermelho); color: var(--vermelho); background: transparent;
+}
+.botao.cheio { background: var(--vermelho); color: white; }
+.botao:active { transform: scale(0.97); }
+
+/* seção vermelha */
+.secao-vermelha { background: var(--vermelho); color: white; text-align: center; padding: 26px 16px 30px; }
+.secao-vermelha h2 { font-weight: 400; margin: 0 0 18px; font-size: 22px; }
+.atalhos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.atalho { color: white; text-decoration: none; font-size: 14px; }
+.atalho .icone { font-size: 34px; display: block; margin-bottom: 4px; }
+
+/* borda recortada */
+.recorte {
+  height: 14px; background: radial-gradient(circle at 10px 0, var(--vermelho) 10px, transparent 11px) repeat-x;
+  background-size: 20px 14px;
+}
+
+/* florzinhas */
+.flores {
+  height: 36px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cg fill='%23F8C9D4' stroke='%23F2A0B6' stroke-width='1'%3E%3Ccircle cx='20' cy='10' r='6'/%3E%3Ccircle cx='30' cy='17' r='6'/%3E%3Ccircle cx='26' cy='29' r='6'/%3E%3Ccircle cx='14' cy='29' r='6'/%3E%3Ccircle cx='10' cy='17' r='6'/%3E%3C/g%3E%3Ccircle cx='20' cy='20' r='4' fill='%23FFE27A'/%3E%3C/svg%3E");
+  background-repeat: repeat-x; background-position: center; background-size: 36px 36px;
+}
+
+/* pétalas caindo */
+.petalas { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 5; }
+.petalas span { position: absolute; top: -40px; font-size: 20px; opacity: 0.8; animation: cair 12s linear infinite; }
+.petalas span:nth-child(1) { left: 8%;  animation-delay: 0s; }
+.petalas span:nth-child(2) { left: 24%; animation-delay: 3s; }
+.petalas span:nth-child(3) { left: 41%; animation-delay: 6s; }
+.petalas span:nth-child(4) { left: 58%; animation-delay: 1.5s; }
+.petalas span:nth-child(5) { left: 75%; animation-delay: 4.5s; }
+.petalas span:nth-child(6) { left: 90%; animation-delay: 8s; }
+@keyframes cair { to { transform: translateY(110vh) rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .petalas { display: none; } }
+
+/* seções claras e prateleira */
+.secao { padding: 26px 20px; text-align: center; }
+.secao h2 { font-family: "Dancing Script", cursive; font-size: 34px; font-weight: 600; color: var(--vermelho); margin: 0 0 16px; }
+.prateleira { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+.livro-capa {
+  aspect-ratio: 2 / 3; background: white; border: 1px solid var(--rosa-forte);
+  display: flex; align-items: center; justify-content: center; font-size: 30px; color: var(--rosa-forte);
+}
+
+/* cards e formulários */
+.card { background: white; border: 1px solid var(--rosa-forte); padding: 18px; margin: 16px 20px; }
+.card h2 { margin-top: 0; font-weight: 700; }
+input, textarea {
+  width: 100%; padding: 13px; margin: 6px 0; border: 1px solid var(--rosa-forte);
+  font-size: 16px; font-family: inherit; color: var(--texto); background: white;
+}
+input:focus, textarea:focus { outline: 2px solid var(--lilas); }
+.erro { color: var(--vermelho); }
+
+/* menu de baixo */
+.menu {
+  position: fixed; bottom: 0; left: 0; right: 0; display: flex; background: white;
+  border-top: 1px solid var(--rosa-forte); padding-bottom: env(safe-area-inset-bottom, 0px); z-index: 10;
+}
+.menu a {
+  flex: 1; text-align: center; padding: 10px 4px 8px; text-decoration: none; color: var(--texto);
+  font-size: 20px; border-top: 3px solid transparent;
+}
+.menu a span { display: block; font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; margin-top: 2px; }
+.menu a.ativo { color: var(--vermelho); border-top-color: var(--vermelho); }
+
+/* tela de entrada */
+body.tela-entrada {
+  display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px;
+  background-image: repeating-linear-gradient(90deg, white 0 14px, #FFE4EA 14px 28px);
+}
+.entrada { width: 100%; max-width: 360px; text-align: center; margin: 0; padding: 26px 22px; }
+.entrada .marca { font-family: "Dancing Script", cursive; font-size: 40px; color: var(--vermelho); margin: 0 0 12px; }
+.entrada .botao { width: 100%; margin-top: 8px; }
+
+/* busca de livros */
+.status { font-size: 14px; color: var(--rosa-forte); min-height: 18px; margin: 4px 0; }
+.resultado { display: flex; gap: 14px; padding: 14px 0; border-top: 1px solid var(--rosa); text-align: left; }
+.capa-resultado {
+  width: 70px; min-width: 70px; height: 104px; background: var(--rosa);
+  border: 1px solid var(--rosa-forte); display: flex; align-items: center;
+  justify-content: center; font-size: 28px; overflow: hidden;
+}
+.capa-resultado img { width: 100%; height: 100%; object-fit: cover; }
+.resultado .autor { margin: 2px 0; font-size: 14px; }
+.resultado .paginas { margin: 2px 0 6px; font-size: 12px; color: var(--rosa-forte); font-weight: 600; }
+.resultado details { font-size: 13px; line-height: 1.5; }
+.resultado summary { cursor: pointer; color: var(--vermelho); font-weight: 600; }
+
+/* sugestões */
+.contador { font-size: 13px; font-weight: 600; color: var(--vermelho); margin-left: 6px; }
+.aviso { color: var(--vermelho); font-size: 14px; font-weight: 600; min-height: 18px; margin: 4px 0; }
+.botao.mini { padding: 8px 14px; font-size: 11px; margin-top: 6px; margin-right: 6px; }
+.botao:disabled { opacity: 0.5; cursor: default; }
+
+/* vibes */
+.card h3 { font-size: 15px; font-weight: 700; margin: 18px 0 8px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  font-family: inherit; font-size: 13px; padding: 8px 14px; cursor: pointer;
+  background: white; color: var(--texto); border: 1px solid var(--rosa-forte); border-radius: 999px;
+}
+.chip.ativa { background: var(--vermelho); border-color: var(--vermelho); color: white; }
+.rotulo { display: block; font-size: 13px; font-weight: 600; margin: 16px 0 4px; }
+select {
+  width: 100%; padding: 13px; border: 1px solid var(--rosa-forte); background: white;
+  font-size: 16px; font-family: inherit; color: var(--texto);
+}
+.oculto { display: none; }
+
+/* adicionar manualmente */
+.manual { margin-top: 20px; border-top: 1px solid var(--rosa); padding-top: 14px; text-align: left; }
+.manual summary { cursor: pointer; color: var(--vermelho); font-weight: 600; font-size: 14px; }
+.manual form { margin-top: 10px; }
+.previa { display: block; width: 110px; margin: 8px 0; border: 1px solid var(--rosa-forte); }
+.previa.oculto { display: none; }
+
+/* livro do mês e votação */
+.etiqueta {
+  display: inline-block; background: var(--rosa); padding: 3px 12px; font-size: 11px;
+  font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+}
+.capa-grande {
+  width: 110px; min-width: 110px; height: 163px; background: var(--rosa);
+  border: 1px solid var(--rosa-forte); display: flex; align-items: center;
+  justify-content: center; font-size: 36px; overflow: hidden;
+}
+.capa-grande img { width: 100%; height: 100%; object-fit: cover; }
+.titulo-livro { margin: 6px 0 2px; font-size: 20px; font-weight: 700; }
+.livro-destaque .autor, .livro-destaque .paginas { margin: 2px 0; font-size: 14px; }
+.livro-destaque details { font-size: 13px; line-height: 1.5; margin-top: 6px; }
+.livro-destaque summary { cursor: pointer; color: var(--vermelho); font-weight: 600; }
+.por { font-size: 12px; margin: 2px 0; }
+.votos { font-size: 13px; font-weight: 600; color: var(--vermelho); margin: 2px 0 4px; }
+
+/* perfil */
+.topo { position: relative; }
+.avatar {
+  position: absolute; top: 12px; right: 14px; width: 42px; height: 42px; border-radius: 50%;
+  border: 2px solid var(--rosa-forte); background: var(--rosa); color: var(--vermelho);
+  font-weight: 700; display: flex; align-items: center; justify-content: center;
+  overflow: hidden; text-decoration: none;
+}
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+.perfil { text-align: center; }
+.avatar-grande {
+  width: 140px; height: 140px; border-radius: 50%; margin: 10px auto;
+  border: 3px solid var(--rosa-forte); background: var(--rosa); color: var(--vermelho);
+  font-size: 56px; font-weight: 700; display: flex; align-items: center;
+  justify-content: center; overflow: hidden;
+}
+.avatar-grande img { width: 100%; height: 100%; object-fit: cover; }
+.nome-perfil { font-weight: 700; margin: 0 0 8px; }
+
+/* leitura */
+.meta-clube { font-size: 22px; font-weight: 700; color: var(--vermelho); margin: 4px 0; }
+.barra {
+  height: 14px; background: var(--rosa); border: 1px solid var(--rosa-forte);
+  border-radius: 999px; overflow: hidden; margin: 10px 0 4px;
+}
+.barra.fina { height: 8px; margin: 6px 0 2px; }
+.barra-cheia { height: 100%; width: 0; background: var(--vermelho); transition: width 0.4s; }
+.linha-form { display: flex; gap: 8px; align-items: center; }
+.linha-form input { flex: 1; margin: 6px 0; }
+.membro-linha { display: flex; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--rosa); }
+.membro-linha:first-child { border-top: none; }
+.membro-linha .miolo { flex: 1; min-width: 0; }
+.avatar-mini {
+  width: 40px; height: 40px; min-width: 40px; border-radius: 50%; overflow: hidden;
+  border: 2px solid var(--rosa-forte); background: var(--rosa); color: var(--vermelho);
+  font-weight: 700; display: flex; align-items: center; justify-content: center;
+}
+.avatar-mini img { width: 100%; height: 100%; object-fit: cover; }
+
+/* estrelas e avaliações */
+.estrelas { display: inline-flex; gap: 2px; vertical-align: middle; }
+.estrela {
+  position: relative; display: inline-block; font-size: 22px; line-height: 1;
+  color: var(--rosa); user-select: none; -webkit-user-select: none;
+}
+.estrela-cheia {
+  position: absolute; left: 0; top: 0; width: 0; overflow: hidden;
+  white-space: nowrap; color: var(--vermelho);
+}
+.estrelas.grandes .estrela { font-size: 46px; cursor: pointer; }
+.estrelas.pequenas .estrela { font-size: 18px; }
+.num-nota { margin-left: 8px; font-size: 13px; font-weight: 600; }
+.livro-linha { display: flex; gap: 14px; align-items: center; margin-top: 10px; }
+.media { margin-top: 6px; font-size: 13px; }
+.membro-linha.topo-alinhado { align-items: flex-start; }
+.resenha-texto { margin: 6px 0 0; font-size: 14px; line-height: 1.5; white-space: pre-wrap; }
+
+/* encontro */
+.menu a span { letter-spacing: 0.06em; }
+.cal-topo { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.cal-topo strong { text-transform: capitalize; }
+.cal-nav {
+  background: white; border: 1px solid var(--rosa-forte); color: var(--vermelho);
+  width: 36px; height: 36px; font-size: 18px; cursor: pointer; font-family: inherit;
+}
+.cal-grade { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-dia-semana { text-align: center; font-size: 11px; font-weight: 700; color: var(--rosa-forte); padding: 4px 0; }
+.cal-dia {
+  aspect-ratio: 1; border: 1px solid var(--rosa); background: white; color: var(--texto);
+  font-family: inherit; font-size: 14px; cursor: pointer; padding: 0;
+}
+.cal-dia:disabled { opacity: 0.35; cursor: default; }
+.cal-dia.hoje { border: 2px solid var(--vermelho); }
+.cal-dia.proposto { background: var(--rosa); font-weight: 700; }
+.cal-dia.confirmado { background: var(--vermelho); color: white; font-weight: 700; }
+.cal-legenda { font-size: 12px; margin: 10px 0 0; line-height: 1.5; }
+.previa-fuso { font-size: 13px; margin: 6px 0 10px; }
+.enc { border: 1px solid var(--rosa-forte); padding: 14px; margin-top: 12px; background: white; }
+.enc.confirmado { border: 2px solid var(--vermelho); background: #FFF8F9; }
+.enc .selo {
+  display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; background: var(--rosa); padding: 3px 10px; margin-bottom: 8px;
+}
+.enc.confirmado .selo { background: var(--vermelho); color: white; }
+.fuso { margin: 3px 0; font-size: 15px; }
+.fuso .rot { display: inline-block; min-width: 100px; font-weight: 700; font-size: 13px; }
+.enc .quem { font-size: 12px; margin: 8px 0; line-height: 1.5; }

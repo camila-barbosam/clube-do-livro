@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<div class="card">
+  <h2>Avaliações</h2>
+  <p id="a-status" class="status">Carregando...</p>
+  <div id="a-conteudo" class="oculto">
+    <select id="a-seletor" class="oculto"></select>
+    <div class="livro-linha">
+      <div class="capa-resultado" id="a-capa"></div>
+      <div>
+        <strong id="a-titulo"></strong>
+        <p class="autor" id="a-autor"></p>
+        <div id="a-media" class="media"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card oculto" id="cartao-minha">
+  <h2>Minha avaliação</h2>
+  <div id="a-estrelas-minha"></div>
+  <p id="a-nota-texto" class="paginas"></p>
+  <textarea id="a-resenha" rows="5" maxlength="2000" placeholder="Escreva a sua resenha (opcional)"></textarea>
+  <p id="a-aviso" class="aviso"></p>
+  <button type="button" id="a-salvar" class="botao cheio">Salvar avaliação</button>
+  <button type="button" id="a-remover" class="botao mini oculto">Remover a minha</button>
+</div>
+
+<div class="card oculto" id="cartao-grupo">
+  <h2>O que o grupo achou</h2>
+  <div id="a-lista"></div>
+</div>
+
+<script>
+const el = id => document.getElementById(id);
+let livroId = null, nota = 0, seletor = null, avisoTimer;
+
+function avisar(msg) {
+  el("a-aviso").textContent = msg;
+  clearTimeout(avisoTimer);
+  avisoTimer = setTimeout(() => { el("a-aviso").textContent = ""; }, 4000);
+}
+
+function virgula(n) { return String(n).replace(".", ","); }
+
+/* ---------- estrelas ---------- */
+function novaEstrela() {
+  const e = document.createElement("span");
+  e.className = "estrela";
+  e.textContent = "★";
+  const cheia = document.createElement("span");
+  cheia.className = "estrela-cheia";
+  cheia.textContent = "★";
+  e.appendChild(cheia);
+  return e;
+}
+
+function pintar(caixa, valor) {
+  caixa.querySelectorAll(".estrela-cheia").forEach((c, i) => {
+    const p = Math.max(0, Math.min(1, valor - i));
+    c.style.width = (Math.round(p * 2) / 2 * 100) + "%";
+  });
+}
+
+function criarEstrelas(valor, classe) {
+  const caixa = document.createElement("span");
+  caixa.className = "estrelas " + (classe || "");
+  for (let i = 0; i < 5; i++) caixa.appendChild(novaEstrela());
+  pintar(caixa, valor);
+  return caixa;
+}
+
+function valorDoPonto(e, estrela, i) {
+  const r = estrela.getBoundingClientRect();
+  return i + ((e.clientX - r.left) < r.width / 2 ? 0.5 : 1);
+}
+
+function estrelasInterativas(container, inicial, aoMudar) {
+  container.replaceChildren();
+  const caixa = criarEstrelas(inicial, "grandes");
+  let atual = inicial;
+  caixa.querySelectorAll(".estrela").forEach((st, i) => {
+    st.addEventListener("click", (e) => {
+      atual = valorDoPonto(e, st, i);
+      pintar(caixa, atual);
+      aoMudar(atual);
+    });
+    st.addEventListener("mousemove", (e) => pintar(caixa, valorDoPonto(e, st, i)));
+  });
+  caixa.addEventListener("mouseleave", () => pintar(caixa, atual));
+  container.appendChild(caixa);
+}
+
+function atualizarTextoNota() {
+  el("a-nota-texto").textContent = nota ? virgula(nota) + " de 5" : "Toque nas estrelas (a metade esquerda vale meia estrela)";
+}
+
+/* ---------- desenho da página ---------- */
+function desenharCapa(url, titulo) {
+  const capa = el("a-capa");
+  capa.replaceChildren();
+  if (url && url.startsWith("https://")) {
+    const img = document.createElement("img");
+    img.src = url;
+    img.alt = "Capa de " + titulo;
+    capa.appendChild(img);
+  } else {
+    capa.textContent = "📖";
+  }
+}
+
+function linhaAvaliacao(a) {
+  const linha = document.createElement("div");
+  linha.className = "membro-linha topo-alinhado";
+
+  const av = document.createElement("div");
+  av.className = "avatar-mini";
+  if (a.foto && a.foto.startsWith("https://")) {
+    const img = document.createElement("img");
+    img.src = a.foto;
+    img.alt = "";
+    av.appendChild(img);
+  } else {
+    av.textContent = (a.nome || "?").charAt(0).toUpperCase();
+  }
+
+  const miolo = document.createElement("div");
+  miolo.className = "miolo";
+  const nome = document.createElement("strong");
+  nome.textContent = a.nome + (a.sou_eu ? " (você)" : "");
+  const linhaNota = document.createElement("div");
+  linhaNota.append(criarEstrelas(a.estrelas, "pequenas"));
+  const num = document.createElement("span");
+  num.className = "num-nota";
+  num.textContent = virgula(a.estrelas);
+  linhaNota.appendChild(num);
+  miolo.append(nome, linhaNota);
+
+  if (a.resenha) {
+    const txt = document.createElement("p");
+    txt.className = "resenha-texto";
+    txt.textContent = a.resenha;
+    miolo.appendChild(txt);
+  }
+
+  linha.append(av, miolo);
+  return linha;
+}
+
+function desenhar(d) {
+  if (!d.livros || d.livros.length === 0) {
+    el("a-status").textContent = "Ainda não há livros. Quando a votação for encerrada, o livro do mês aparece aqui.";
+    return;
+  }
+  el("a-status").textContent = "";
+  el("a-conteudo").classList.remove("oculto");
+  el("cartao-minha").classList.remove("oculto");
+  el("cartao-grupo").classList.remove("oculto");
+
+  livroId = d.livro.id;
+
+  const sel = el("a-seletor");
+  sel.replaceChildren();
+  d.livros.forEach(l => {
+    const o = document.createElement("option");
+    o.value = l.id;
+    o.textContent = l.titulo + (l.do_mes ? " (livro do mês)" : "");
+    if (l.id === livroId) o.selected = true;
+    sel.appendChild(o);
+  });
+  sel.classList.toggle("oculto", d.livros.length < 2);
+
+  el("a-titulo").textContent = d.livro.titulo;
+  el("a-autor").textContent = d.livro.autor || "";
+  desenharCapa(d.livro.capa, d.livro.titulo);
+
+  const media = el("a-media");
+  media.replaceChildren();
+  if (d.media === null) {
+    media.textContent = "Ninguém avaliou ainda.";
+  } else {
+    media.append(criarEstrelas(d.media, "pequenas"));
+    const t = document.createElement("span");
+    t.className = "num-nota";
+    t.textContent = virgula(d.media) + " (" + d.quantidade + (d.quantidade === 1 ? " avaliação)" : " avaliações)");
+    media.appendChild(t);
+  }
+
+  nota = d.minha ? d.minha.estrelas : 0;
+  el("a-resenha").value = d.minha ? d.minha.resenha : "";
+  el("a-remover").classList.toggle("oculto", !d.minha);
+  estrelasInterativas(el("a-estrelas-minha"), nota, (v) => { nota = v; atualizarTextoNota(); });
+  atualizarTextoNota();
+
+  const lista = el("a-lista");
+  lista.replaceChildren();
+  if (d.avaliacoes.length === 0) {
+    const p = document.createElement("p");
+    p.textContent = "Seja a primeira a avaliar! 💕";
+    lista.appendChild(p);
+  }
+  d.avaliacoes.forEach(a => lista.appendChild(linhaAvaliacao(a)));
+}
+
+async function carregar(id) {
+  try {
+    const resp = await fetch("/avaliacoes/dados" + (id ? "?livro_id=" + id : ""));
+    const dados = await resp.json();
+    if (!resp.ok) { el("a-status").textContent = dados.erro || "Algo deu errado."; return; }
+    desenhar(dados);
+  } catch (e) {
+    el("a-status").textContent = "Sem conexão com o servidor.";
+  }
+}
+
+el("a-seletor").addEventListener("change", (e) => carregar(e.target.value));
+
+el("a-salvar").addEventListener("click", async () => {
+  if (!nota) { avisar("Escolha pelo menos meia estrela. ⭐"); return; }
+  const botao = el("a-salvar");
+  botao.disabled = true;
+  try {
+    const resp = await fetch("/avaliacoes/salvar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ livro_id: livroId, estrelas: nota, resenha: el("a-resenha").value }),
+    });
+    const dados = await resp.json();
+    if (resp.ok) {
+      await carregar(livroId);
+      avisar("Avaliação salva! 💕");
+    } else {
+      avisar(dados.erro || "Algo deu errado.");
+    }
+  } catch (e) {
+    avisar("Sem conexão com o servidor.");
+  }
+  botao.disabled = false;
+});
+
+el("a-remover").addEventListener("click", async () => {
+  if (!confirm("Remover a sua avaliação deste livro?")) return;
+  await fetch("/avaliacoes/" + livroId, { method: "DELETE" });
+  await carregar(livroId);
+});
+
+carregar();
+</script>
+{% endblock %}

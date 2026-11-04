@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<div class="card">
+  <h2>Minhas sugestões <span id="contador" class="contador">0 de 3</span></h2>
+  <div id="minhas"></div>
+</div>
+
+<div class="card">
+  <h2>Sugerir um livro</h2>
+
+  <h3>Qual a sua vibe?</h3>
+  <div class="chips">
+    <button type="button" class="chip" data-vibe="terror">👻 Terror</button>
+    <button type="button" class="chip" data-vibe="romance">💕 Romance</button>
+    <button type="button" class="chip" data-vibe="suspense">🔪 Suspense</button>
+    <button type="button" class="chip" data-vibe="misterio">🕵️ Mistério</button>
+    <button type="button" class="chip" data-vibe="fantasia">🧚 Fantasia</button>
+    <button type="button" class="chip" data-vibe="ficcao">🚀 Ficção científica</button>
+    <button type="button" class="chip" data-vibe="gotico">🦇 Gótico</button>
+    <button type="button" class="chip" data-vibe="classicos">📜 Clássicos</button>
+    <button type="button" class="chip" data-vibe="humor">😂 Humor</button>
+    <button type="button" class="chip" data-vibe="drama">🎭 Drama</button>
+  </div>
+
+  <label for="limite" class="rotulo">Tamanho do livro</label>
+  <select id="limite">
+    <option value="">Qualquer tamanho</option>
+    <option value="200">Até 200 páginas</option>
+    <option value="300">Até 300 páginas</option>
+    <option value="400">Até 400 páginas</option>
+  </select>
+
+  <h3>Ou procure pelo título</h3>
+  <input id="busca" type="search" placeholder="Digite o título do livro..." autocomplete="off">
+  <button type="button" id="outros" class="botao mini oculto">🔀 Ver outros</button>
+
+  <p id="aviso" class="aviso"></p>
+  <p id="status" class="status"></p>
+  <div id="resultados"></div>
+
+  <details id="manual" class="manual">
+    <summary>Não achou o livro? Adicione manualmente</summary>
+    <form id="form-manual">
+      <input id="m-titulo" placeholder="Título do livro" maxlength="200" required>
+      <input id="m-autor" placeholder="Autor(a)" maxlength="200">
+      <input id="m-paginas" type="number" min="1" max="5000" placeholder="Número de páginas (opcional)">
+      <textarea id="m-resumo" rows="5" maxlength="3000" placeholder="Resumo do livro"></textarea>
+      <label for="m-capa" class="rotulo">Capa (foto ou imagem)</label>
+      <input id="m-capa" type="file" accept="image/*">
+      <img id="m-previa" class="previa oculto" alt="Prévia da capa">
+      <p id="m-aviso" class="aviso"></p>
+      <button type="submit" class="botao cheio" id="m-enviar">Sugerir este livro</button>
+    </form>
+  </details>
+</div>
+
+<script>
+const campo = document.getElementById("busca");
+const status = document.getElementById("status");
+const aviso = document.getElementById("aviso");
+const caixa = document.getElementById("resultados");
+const lista = document.getElementById("minhas");
+const contador = document.getElementById("contador");
+const chips = document.querySelectorAll(".chip");
+const limite = document.getElementById("limite");
+const outros = document.getElementById("outros");
+const manual = document.getElementById("manual");
+const formManual = document.getElementById("form-manual");
+const mCapa = document.getElementById("m-capa");
+const mPrevia = document.getElementById("m-previa");
+const mAviso = document.getElementById("m-aviso");
+let espera, avisoTimer, vibeAtual = "", seq = 0, capaBlob = null;
+
+function avisar(msg, alvo = aviso) {
+  alvo.textContent = msg;
+  clearTimeout(avisoTimer);
+  avisoTimer = setTimeout(() => { alvo.textContent = ""; }, 4000);
+}
+
+function montarCapa(url, titulo) {
+  const capa = document.createElement("div");
+  capa.className = "capa-resultado";
+  if (url) {
+    const img = document.createElement("img");
+    img.src = url;
+    img.alt = "Capa de " + titulo;
+    img.loading = "lazy";
+    capa.appendChild(img);
+  } else {
+    capa.textContent = "📖";
+  }
+  return capa;
+}
+
+function montarInfo(l) {
+  const info = document.createElement("div");
+  const titulo = document.createElement("strong");
+  titulo.textContent = l.titulo;
+  const autor = document.createElement("p");
+  autor.className = "autor";
+  autor.textContent = l.autor;
+  const pag = document.createElement("p");
+  pag.className = "paginas";
+  pag.textContent = l.paginas ? l.paginas + " páginas" : "Páginas não informadas";
+  info.append(titulo, autor, pag);
+  if (l.resumo) {
+    const det = document.createElement("details");
+    const sum = document.createElement("summary");
+    sum.textContent = "Ver resumo";
+    const txt = document.createElement("p");
+    txt.textContent = l.resumo;
+    det.append(sum, txt);
+    info.appendChild(det);
+  }
+  return info;
+}
+
+/* ---------- vibes e busca ---------- */
+chips.forEach(c => c.addEventListener("click", () => {
+  const v = c.dataset.vibe;
+  vibeAtual = (vibeAtual === v) ? "" : v;
+  chips.forEach(x => x.classList.toggle("ativa", x.dataset.vibe === vibeAtual));
+  if (vibeAtual) campo.value = "";
+  buscar();
+}));
+
+limite.addEventListener("change", buscar);
+outros.addEventListener("click", buscar);
+
+campo.addEventListener("input", () => {
+  if (campo.value) {
+    vibeAtual = "";
+    chips.forEach(x => x.classList.remove("ativa"));
+  }
+  clearTimeout(espera);
+  espera = setTimeout(buscar, 500);
+});
+
+async function buscar() {
+  const q = campo.value.trim();
+  const minha = ++seq;
+  caixa.replaceChildren();
+  outros.classList.toggle("oculto", !vibeAtual);
+  if (!vibeAtual && q.length < 3) { status.textContent = ""; return; }
+  status.textContent = "Buscando...";
+
+  const params = new URLSearchParams();
+  if (vibeAtual) params.set("vibe", vibeAtual); else params.set("q", q);
+  if (limite.value) params.set("max_paginas", limite.value);
+
+  try {
+    const resp = await fetch("/buscar-livro?" + params.toString());
+    const dados = await resp.json();
+    if (minha !== seq) return;
+    if (!resp.ok) { status.textContent = dados.erro || "Algo deu errado."; return; }
+    if (dados.resultados.length === 0) {
+      status.textContent = "Nenhum livro encontrado. Tente outra vibe, outro tamanho ou adicione manualmente lá embaixo.";
+      return;
+    }
+    status.textContent = "";
+    dados.resultados.forEach(l => caixa.appendChild(cartaoResultado(l)));
+  } catch (e) {
+    if (minha === seq) status.textContent = "Sem conexão com o servidor.";
+  }
+}
+
+function cartaoResultado(l) {
+  const cartao = document.createElement("div");
+  cartao.className = "resultado";
+  const info = montarInfo(l);
+  const botao = document.createElement("button");
+  botao.type = "button";
+  botao.className = "botao cheio mini";
+  botao.textContent = "Sugerir";
+  botao.addEventListener("click", () => sugerir(l, botao));
+  info.appendChild(botao);
+  cartao.append(montarCapa(l.capa, l.titulo), info);
+  return cartao;
+}
+
+async function sugerir(l, botao) {
+  botao.disabled = true;
+  try {
+    const resp = await fetch("/sugestoes/salvar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(l),
+    });
+    const dados = await resp.json();
+    if (resp.ok) {
+      botao.textContent = "Sugerido ✓";
+      await carregarMinhas();
+    } else {
+      botao.disabled = false;
+      avisar(dados.erro || "Algo deu errado.");
+    }
+  } catch (e) {
+    botao.disabled = false;
+    avisar("Sem conexão com o servidor.");
+  }
+}
+
+/* ---------- adicionar manualmente ---------- */
+manual.addEventListener("toggle", () => {
+  if (manual.open) {
+    const t = document.getElementById("m-titulo");
+    if (!t.value && campo.value.trim()) t.value = campo.value.trim();
+  }
+});
+
+function reduzirImagem(arquivo, largura, qualidade) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(arquivo);
+    const img = new Image();
+    img.onload = () => {
+      const escala = Math.min(1, largura / img.width);
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * escala);
+      c.height = Math.round(img.height * escala);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      c.toBlob(b => b ? resolve(b) : reject(new Error("falhou")), "image/jpeg", qualidade);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("imagem invalida")); };
+    img.src = url;
+  });
+}
+
+mCapa.addEventListener("change", async () => {
+  capaBlob = null;
+  mPrevia.classList.add("oculto");
+  const arq = mCapa.files[0];
+  if (!arq) return;
+  try {
+    capaBlob = await reduzirImagem(arq, 600, 0.85);
+    mPrevia.src = URL.createObjectURL(capaBlob);
+    mPrevia.classList.remove("oculto");
+  } catch (e) {
+    avisar("Não consegui ler essa imagem. Tente outra.", mAviso);
+    mCapa.value = "";
+  }
+});
+
+formManual.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const botao = document.getElementById("m-enviar");
+  botao.disabled = true;
+  const fd = new FormData();
+  fd.append("titulo", document.getElementById("m-titulo").value.trim());
+  fd.append("autor", document.getElementById("m-autor").value.trim());
+  fd.append("paginas", document.getElementById("m-paginas").value);
+  fd.append("resumo", document.getElementById("m-resumo").value.trim());
+  if (capaBlob) fd.append("capa", capaBlob, "capa.jpg");
+  try {
+    const resp = await fetch("/sugestoes/manual", { method: "POST", body: fd });
+    const dados = await resp.json();
+    if (resp.ok) {
+      formManual.reset();
+      capaBlob = null;
+      mPrevia.classList.add("oculto");
+      manual.open = false;
+      avisar("Livro sugerido! 💕");
+      await carregarMinhas();
+    } else {
+      avisar(dados.erro || "Algo deu errado.", mAviso);
+    }
+  } catch (err) {
+    avisar("Não consegui enviar. Confira a conexão e tente de novo.", mAviso);
+  }
+  botao.disabled = false;
+});
+
+/* ---------- minhas sugestões ---------- */
+async function carregarMinhas() {
+  const resp = await fetch("/sugestoes/minhas");
+  const dados = await resp.json();
+  const itens = dados.sugestoes || [];
+  contador.textContent = itens.length + " de 3";
+  lista.replaceChildren();
+  if (itens.length === 0) {
+    const p = document.createElement("p");
+    p.textContent = "Você ainda não sugeriu nenhum livro.";
+    lista.appendChild(p);
+  }
+  itens.forEach(s => lista.appendChild(cartaoMinha(s)));
+}
+
+function cartaoMinha(s) {
+  const cartao = document.createElement("div");
+  cartao.className = "resultado";
+  const info = montarInfo(s);
+  const apagar = document.createElement("button");
+  apagar.type = "button";
+  apagar.className = "botao mini";
+  apagar.textContent = "Apagar";
+  apagar.addEventListener("click", async () => {
+    if (!confirm("Apagar essa sugestão?")) return;
+    await fetch("/sugestoes/" + s.id, { method: "DELETE" });
+    await carregarMinhas();
+  });
+  info.appendChild(apagar);
+  cartao.append(montarCapa(s.capa, s.titulo), info);
+  return cartao;
+}
+
+carregarMinhas();
+</script>
+{% endblock %}

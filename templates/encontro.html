@@ -1,0 +1,295 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<div class="card">
+  <h2>Encontro do clube 📞</h2>
+  <p id="e-status" class="status">Carregando...</p>
+  <div id="e-resumo" class="oculto">
+    <p><strong id="e-livro"></strong></p>
+    <p id="e-terminaram" class="paginas"></p>
+    <p id="e-nota"></p>
+  </div>
+</div>
+
+<div class="card oculto" id="cartao-cal">
+  <h2>Calendário</h2>
+  <div class="cal-topo">
+    <button type="button" class="cal-nav" id="cal-ant" aria-label="Mês anterior">‹</button>
+    <strong id="cal-titulo"></strong>
+    <button type="button" class="cal-nav" id="cal-prox" aria-label="Próximo mês">›</button>
+  </div>
+  <div class="cal-grade" id="cal-grade"></div>
+  <p class="cal-legenda">Rosa: tem horário proposto. Vermelho: encontro marcado. Toque num dia para propor um horário. Os dias seguem o fuso do seu celular.</p>
+</div>
+
+<div class="card oculto" id="cartao-propor">
+  <h2>Propor um horário</h2>
+  <form id="p-form">
+    <input id="p-data" type="datetime-local" required>
+    <div id="p-previa" class="previa-fuso"></div>
+    <button type="submit" class="botao cheio">Propor este horário</button>
+  </form>
+  <p class="status">Você escolhe no horário do seu celular, e o app mostra para todas o horário correspondente no Brasil e na Irlanda.</p>
+  <p class="aviso e-aviso"></p>
+</div>
+
+<div class="card oculto" id="cartao-lista">
+  <h2>Horários</h2>
+  <p class="aviso e-aviso"></p>
+  <div id="e-lista"></div>
+</div>
+
+<script src="{{ url_for('static', filename='fuso.js') }}"></script>
+<script>
+const el = id => document.getElementById(id);
+let dados = null, avisoTimer;
+let mes = new Date();
+mes.setDate(1);
+mes.setHours(0, 0, 0, 0);
+
+function avisar(msg) {
+  document.querySelectorAll(".e-aviso").forEach(p => { p.textContent = msg; });
+  clearTimeout(avisoTimer);
+  avisoTimer = setTimeout(() => {
+    document.querySelectorAll(".e-aviso").forEach(p => { p.textContent = ""; });
+  }, 4000);
+}
+
+async function chamar(url, metodo, corpo) {
+  try {
+    const resp = await fetch(url, {
+      method: metodo,
+      headers: { "Content-Type": "application/json" },
+      body: corpo ? JSON.stringify(corpo) : undefined,
+    });
+    const d = await resp.json();
+    if (!resp.ok) { avisar(d.erro || "Algo deu errado."); return false; }
+    return true;
+  } catch (e) {
+    avisar("Sem conexão com o servidor.");
+    return false;
+  }
+}
+
+function blocoFusos(iso) {
+  const caixa = document.createElement("div");
+  window.Fuso.linhas(iso).forEach(l => {
+    const p = document.createElement("p");
+    p.className = "fuso";
+    const r = document.createElement("span");
+    r.className = "rot";
+    r.textContent = l.rotulo;
+    p.append(r, " " + l.texto);
+    caixa.appendChild(p);
+  });
+  return caixa;
+}
+
+function botaoAcao(texto, classe, aoClicar) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = classe;
+  b.textContent = texto;
+  b.addEventListener("click", aoClicar);
+  return b;
+}
+
+/* ---------- calendário ---------- */
+function desenharCalendario() {
+  const grade = el("cal-grade");
+  grade.replaceChildren();
+  const ano = mes.getFullYear();
+  const m = mes.getMonth();
+  el("cal-titulo").textContent = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(mes);
+
+  ["D", "S", "T", "Q", "Q", "S", "S"].forEach(n => {
+    const c = document.createElement("div");
+    c.className = "cal-dia-semana";
+    c.textContent = n;
+    grade.appendChild(c);
+  });
+
+  const marcados = {};
+  (dados ? dados.encontros : []).forEach(e => {
+    const d = new Date(e.inicio);
+    const chave = d.getFullYear() + "-" + d.getMonth() + "-" + d.getDate();
+    if (!marcados[chave]) marcados[chave] = { conf: false };
+    if (e.confirmado) marcados[chave].conf = true;
+  });
+
+  const primeiro = new Date(ano, m, 1).getDay();
+  const diasNoMes = new Date(ano, m + 1, 0).getDate();
+  for (let i = 0; i < primeiro; i++) grade.appendChild(document.createElement("div"));
+
+  const hoje = new Date();
+  for (let dia = 1; dia <= diasNoMes; dia++) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "cal-dia";
+    btn.textContent = dia;
+    const chave = ano + "-" + m + "-" + dia;
+    if (marcados[chave]) btn.classList.add(marcados[chave].conf ? "confirmado" : "proposto");
+    if (hoje.getFullYear() === ano && hoje.getMonth() === m && hoje.getDate() === dia) btn.classList.add("hoje");
+    if (new Date(ano, m, dia, 23, 59) < hoje) btn.disabled = true;
+    btn.addEventListener("click", () => escolherDia(ano, m, dia));
+    grade.appendChild(btn);
+  }
+}
+
+function escolherDia(ano, m, dia) {
+  const atual = el("p-data").value;
+  const hora = atual ? atual.slice(11, 16) : "19:00";
+  const mm = String(m + 1).padStart(2, "0");
+  const dd = String(dia).padStart(2, "0");
+  el("p-data").value = ano + "-" + mm + "-" + dd + "T" + hora;
+  el("p-data").dispatchEvent(new Event("input"));
+  el("p-data").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+el("cal-ant").addEventListener("click", () => { mes.setMonth(mes.getMonth() - 1); desenharCalendario(); });
+el("cal-prox").addEventListener("click", () => { mes.setMonth(mes.getMonth() + 1); desenharCalendario(); });
+
+/* ---------- propor ---------- */
+el("p-data").addEventListener("input", () => {
+  const caixa = el("p-previa");
+  caixa.replaceChildren();
+  const v = el("p-data").value;
+  if (!v) return;
+  const d = new Date(v);
+  if (isNaN(d)) return;
+  caixa.appendChild(blocoFusos(d.toISOString()));
+});
+
+el("p-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const v = el("p-data").value;
+  const d = new Date(v);
+  if (!v || isNaN(d)) { avisar("Escolha o dia e o horário."); return; }
+  if (await chamar("/encontro/propor", "POST", { inicio: d.toISOString() })) {
+    el("p-data").value = "";
+    el("p-previa").replaceChildren();
+    avisar("Horário proposto! 💕");
+    await carregar();
+  }
+});
+
+/* ---------- ações nos horários ---------- */
+async function responder(id, posso) {
+  if (await chamar("/encontro/responder", "POST", { encontro_id: id, posso })) await carregar();
+}
+
+async function confirmar(id) {
+  const link = prompt("Cole o link da chamada de vídeo (Meet, Zoom ou WhatsApp). Pode deixar em branco.", "");
+  if (link === null) return;
+  if (await chamar("/encontro/confirmar", "POST", { encontro_id: id, link: link.trim() })) {
+    avisar("Encontro marcado! 🎉");
+    await carregar();
+  }
+}
+
+async function desmarcar(id) {
+  if (!confirm("Desmarcar o encontro?")) return;
+  if (await chamar("/encontro/desmarcar", "POST", { encontro_id: id })) await carregar();
+}
+
+async function apagar(id) {
+  if (!confirm("Apagar este horário?")) return;
+  if (await chamar("/encontro/" + id, "DELETE")) await carregar();
+}
+
+function cartaoEncontro(e) {
+  const c = document.createElement("div");
+  c.className = "enc" + (e.confirmado ? " confirmado" : "");
+
+  if (e.confirmado || e.id === dados.melhor) {
+    const selo = document.createElement("span");
+    selo.className = "selo";
+    selo.textContent = e.confirmado ? "Encontro marcado 🎉" : "⭐ Melhor horário até agora";
+    c.appendChild(selo);
+  }
+
+  c.appendChild(blocoFusos(e.inicio));
+
+  if (e.confirmado && e.link && e.link.startsWith("https://")) {
+    const a = document.createElement("a");
+    a.href = e.link;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.className = "botao cheio mini";
+    a.textContent = "Entrar na chamada de vídeo";
+    c.appendChild(a);
+  }
+
+  const quem = document.createElement("p");
+  quem.className = "quem";
+  const partes = ["Proposto por " + e.por];
+  partes.push("Podem: " + (e.podem.length ? e.podem.join(", ") : "ninguém ainda"));
+  if (e.nao_podem.length) partes.push("Não podem: " + e.nao_podem.join(", "));
+  if (e.sem_resposta > 0) partes.push("Sem resposta: " + e.sem_resposta);
+  quem.textContent = partes.join(" · ");
+  c.appendChild(quem);
+
+  const acoes = document.createElement("div");
+  acoes.append(
+    botaoAcao("✓ Posso", "botao mini" + (e.minha === true ? " cheio" : ""), () => responder(e.id, true)),
+    botaoAcao("✗ Não posso", "botao mini" + (e.minha === false ? " cheio" : ""), () => responder(e.id, false))
+  );
+  if (dados.admin) {
+    if (e.confirmado) {
+      acoes.append(
+        botaoAcao("Trocar link", "botao mini", () => confirmar(e.id)),
+        botaoAcao("Desmarcar", "botao mini", () => desmarcar(e.id))
+      );
+    } else {
+      acoes.append(botaoAcao("Confirmar este horário", "botao mini", () => confirmar(e.id)));
+    }
+  }
+  if (e.meu || dados.admin) acoes.append(botaoAcao("Apagar", "botao mini", () => apagar(e.id)));
+  c.appendChild(acoes);
+  return c;
+}
+
+/* ---------- página ---------- */
+function desenhar() {
+  el("e-status").textContent = "";
+  el("e-resumo").classList.remove("oculto");
+  el("cartao-cal").classList.remove("oculto");
+  el("cartao-propor").classList.remove("oculto");
+  el("cartao-lista").classList.remove("oculto");
+
+  el("e-livro").textContent = dados.livro.titulo;
+  el("e-terminaram").textContent = dados.terminaram + " de " + dados.total + " já terminaram a leitura";
+  el("e-nota").textContent = dados.eu_terminei
+    ? "Você já terminou! 🎉 Agora é combinar o melhor horário."
+    : "Você ainda não marcou que terminou, mas já pode ver e responder os horários.";
+
+  const lista = el("e-lista");
+  lista.replaceChildren();
+  const ordenados = [...dados.encontros].sort((a, b) => Number(b.confirmado) - Number(a.confirmado));
+  if (ordenados.length === 0) {
+    const p = document.createElement("p");
+    p.textContent = "Ninguém propôs um horário ainda. Seja a primeira! 💕";
+    lista.appendChild(p);
+  }
+  ordenados.forEach(e => lista.appendChild(cartaoEncontro(e)));
+  desenharCalendario();
+}
+
+async function carregar() {
+  try {
+    const resp = await fetch("/encontro/dados");
+    const d = await resp.json();
+    if (!resp.ok) { el("e-status").textContent = d.erro || "Algo deu errado."; return; }
+    if (!d.livro) {
+      el("e-status").textContent = "Ainda não há livro do mês. Quando a votação for encerrada, o encontro aparece aqui.";
+      return;
+    }
+    dados = d;
+    desenhar();
+  } catch (e) {
+    el("e-status").textContent = "Sem conexão com o servidor.";
+  }
+}
+
+carregar();
+</script>
+{% endblock %}

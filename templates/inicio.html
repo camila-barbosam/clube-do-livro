@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<section class="hero">
+  <h1>Oi, {{ nome }}! <em>vamos ler juntas?</em></h1>
+  <p>O nosso cantinho para escolher livros, marcar o progresso e contar o que achou.</p>
+</section>
+
+{% if livro %}
+<div class="livro-destaque">
+  <div class="capa-grande">
+    {% if livro.capa %}<img src="{{ livro.capa }}" alt="Capa de {{ livro.titulo }}">{% else %}📖{% endif %}
+  </div>
+  <div>
+    <span class="etiqueta">Livro do mês</span>
+    <h2 class="titulo-livro">{{ livro.titulo }}</h2>
+    <p class="autor">{{ livro.autor }}</p>
+    {% if livro.paginas %}<p class="paginas">{{ livro.paginas }} páginas</p>{% endif %}
+    {% if livro.resumo %}
+    <details><summary>Ver resumo</summary><p>{{ livro.resumo }}</p></details>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card" id="cartao-leitura">
+  <h2>Minha leitura</h2>
+  <p id="l-status" class="status">Carregando...</p>
+  <div id="l-conteudo" class="oculto">
+    <p id="l-meta-clube" class="meta-clube"></p>
+    <p id="l-mensagem"></p>
+    <div class="barra"><div id="l-barra" class="barra-cheia"></div></div>
+    <p id="l-texto-prog" class="paginas"></p>
+    <form id="l-form" class="linha-form">
+      <input id="l-pagina" type="number" min="0" inputmode="numeric" placeholder="Estou na página...">
+      <button type="submit" class="botao cheio mini">Salvar</button>
+    </form>
+  </div>
+  <p id="l-aviso" class="aviso"></p>
+
+  <details id="l-admin" class="manual oculto">
+    <summary>Definir prazo da leitura (organizadora)</summary>
+    <form id="l-form-admin">
+      <label class="rotulo" for="a-inicio">Começa em</label>
+      <input id="a-inicio" type="date" required>
+      <label class="rotulo" for="a-fim">Termina em</label>
+      <input id="a-fim" type="date" required>
+      <label class="rotulo" for="a-pag">Páginas do livro (preencha se estiver faltando)</label>
+      <input id="a-pag" type="number" min="1" max="5000" inputmode="numeric">
+      <button type="submit" class="botao cheio" style="margin-top: 10px;">Salvar prazo</button>
+    </form>
+  </details>
+</div>
+
+<div class="card">
+  <h2>Como está o grupo</h2>
+  <div id="l-grupo"></div> 
+</div>
+<div class="card oculto" id="cartao-encontro">
+  <span class="etiqueta">Encontro do clube 📞</span>
+  <div id="enc-horarios"></div>
+  <p id="enc-link"></p>
+  <a class="botao mini" href="{{ url_for('encontro') }}">Ver horários</a>
+</div>
+<script>
+const el = id => document.getElementById(id);
+const DIA = 24 * 60 * 60 * 1000;
+let avisoTimer;
+
+function avisar(msg) {
+  el("l-aviso").textContent = msg;
+  clearTimeout(avisoTimer);
+  avisoTimer = setTimeout(() => { el("l-aviso").textContent = ""; }, 4000);
+}
+
+function paraData(s) {
+  const [a, m, d] = s.split("-").map(Number);
+  return new Date(a, m - 1, d);
+}
+
+function formatar(s) {
+  const [a, m, d] = s.split("-");
+  return d + "/" + m;
+}
+
+function linhaMembro(m, pag) {
+  const linha = document.createElement("div");
+  linha.className = "membro-linha";
+
+  const av = document.createElement("div");
+  av.className = "avatar-mini";
+  if (m.foto && m.foto.startsWith("https://")) {
+    const img = document.createElement("img");
+    img.src = m.foto;
+    img.alt = "";
+    av.appendChild(img);
+  } else {
+    av.textContent = (m.nome || "?").charAt(0).toUpperCase();
+  }
+
+  const miolo = document.createElement("div");
+  miolo.className = "miolo";
+  const nome = document.createElement("strong");
+  nome.textContent = m.nome + (m.sou_eu ? " (você)" : "");
+  const barra = document.createElement("div");
+  barra.className = "barra fina";
+  const cheia = document.createElement("div");
+  cheia.className = "barra-cheia";
+  const pct = pag ? Math.min(100, Math.round(m.pagina / pag * 100)) : 0;
+  cheia.style.width = pct + "%";
+  barra.appendChild(cheia);
+  const txt = document.createElement("p");
+  txt.className = "paginas";
+  txt.textContent = pag ? "Página " + m.pagina + " de " + pag + " (" + pct + "%)" : "Página " + m.pagina;
+  miolo.append(nome, barra, txt);
+
+  linha.append(av, miolo);
+  return linha;
+}
+
+function desenhar(d) {
+  const l = d.livro;
+  const pag = l.paginas;
+  const atual = d.minha_pagina;
+
+  el("l-admin").classList.toggle("oculto", !d.admin);
+  if (d.admin) {
+    if (!el("a-inicio").value && l.data_inicio) el("a-inicio").value = l.data_inicio;
+    if (!el("a-fim").value && l.data_fim) el("a-fim").value = l.data_fim;
+    if (!el("a-pag").value && pag) el("a-pag").value = pag;
+  }
+
+  el("l-status").textContent = "";
+  el("l-conteudo").classList.remove("oculto");
+  if (document.activeElement !== el("l-pagina")) el("l-pagina").value = atual || "";
+
+  const pct = pag ? Math.min(100, Math.round(atual / pag * 100)) : 0;
+  el("l-barra").style.width = pct + "%";
+  el("l-texto-prog").textContent = pag ? "Página " + atual + " de " + pag + " (" + pct + "%)" : "Página " + atual;
+
+  const metaClube = el("l-meta-clube");
+  const msg = el("l-mensagem");
+
+  if (!pag) {
+    metaClube.textContent = "";
+    msg.textContent = "Falta informar o número de páginas do livro. A organizadora pode preencher no prazo da leitura.";
+  } else if (!l.data_inicio || !l.data_fim) {
+    metaClube.textContent = "";
+    msg.textContent = "A organizadora ainda não definiu o prazo da leitura.";
+  } else {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const ini = paraData(l.data_inicio);
+    const fim = paraData(l.data_fim);
+    const totalDias = Math.round((fim - ini) / DIA) + 1;
+    const metaFixa = Math.ceil(pag / totalDias);
+    const restantes = Math.max(pag - atual, 0);
+
+    metaClube.textContent = "Meta do clube: " + metaFixa + (metaFixa === 1 ? " página" : " páginas") + " por dia";
+
+    if (restantes === 0) {
+            msg.textContent = "Você terminou o livro! 🎉 ";
+      const ir = document.createElement("a");
+      ir.href = "/encontro";
+      ir.className = "botao cheio mini";
+      ir.textContent = "Marcar o encontro 📞";
+      msg.appendChild(ir);
+    } else if (hoje < ini) {
+      msg.textContent = "A leitura começa em " + formatar(l.data_inicio) + " e vai até " + formatar(l.data_fim) + " (" + totalDias + " dias).";
+    } else if (hoje > fim) {
+      msg.textContent = "O prazo terminou em " + formatar(l.data_fim) + ". Faltaram " + restantes + " páginas.";
+    } else {
+      const diasRest = Math.round((fim - hoje) / DIA) + 1;
+      const hojeMeta = Math.ceil(restantes / diasRest);
+      msg.textContent = "Para terminar no prazo, leia " + hojeMeta + (hojeMeta === 1 ? " página" : " páginas") +
+        " por dia a partir de hoje (" + diasRest + (diasRest === 1 ? " dia restante" : " dias restantes") + ").";
+    }
+  }
+
+  const grupo = el("l-grupo");
+  grupo.replaceChildren();
+  d.grupo.forEach(m => grupo.appendChild(linhaMembro(m, pag)));
+}
+
+async function carregarLeitura() {
+  try {
+    const resp = await fetch("/leitura/dados");
+    const dados = await resp.json();
+    if (!resp.ok || !dados.livro) {
+      el("l-status").textContent = dados.erro || "";
+      return;
+    }
+    desenhar(dados);
+  } catch (e) {
+    el("l-status").textContent = "Sem conexão com o servidor.";
+  }
+}
+
+el("l-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const v = parseInt(el("l-pagina").value, 10);
+  if (Number.isNaN(v) || v < 0) { avisar("Escreva o número da página em que você está."); return; }
+  try {
+    const resp = await fetch("/leitura/progresso", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pagina: v }),
+    });
+    const dados = await resp.json();
+    if (!resp.ok) { avisar(dados.erro || "Algo deu errado."); return; }
+    avisar("Progresso salvo! 💕");
+    await carregarLeitura();
+  } catch (err) {
+    avisar("Sem conexão com o servidor.");
+  }
+});
+
+el("l-form-admin").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const pag = parseInt(el("a-pag").value, 10);
+  try {
+    const resp = await fetch("/livro/prazo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        data_inicio: el("a-inicio").value,
+        data_fim: el("a-fim").value,
+        paginas: Number.isNaN(pag) ? null : pag,
+      }),
+    });
+    const dados = await resp.json();
+    if (!resp.ok) { avisar(dados.erro || "Algo deu errado."); return; }
+    el("l-admin").open = false;
+    avisar("Prazo salvo! 📅");
+    await carregarLeitura();
+  } catch (err) {
+    avisar("Sem conexão com o servidor.");
+  }
+});
+
+carregarLeitura();
+</script>
+<script src="{{ url_for('static', filename='fuso.js') }}"></script>
+<script>
+(async function () {
+  try {
+    const resp = await fetch("/encontro/dados");
+    const d = await resp.json();
+    if (!resp.ok || !d.encontros) return;
+    const e = d.encontros.find(x => x.confirmado);
+    if (!e) return;
+    const box = document.getElementById("enc-horarios");
+    window.Fuso.linhas(e.inicio).forEach(l => {
+      const p = document.createElement("p");
+      p.className = "fuso";
+      const r = document.createElement("span");
+      r.className = "rot";
+      r.textContent = l.rotulo;
+      p.append(r, " " + l.texto);
+      box.appendChild(p);
+    });
+    if (e.link && e.link.startsWith("https://")) {
+      const a = document.createElement("a");
+      a.href = e.link;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.className = "botao cheio mini";
+      a.textContent = "Entrar na chamada de vídeo";
+      document.getElementById("enc-link").appendChild(a);
+    }
+    document.getElementById("cartao-encontro").classList.remove("oculto");
+  } catch (err) {}
+})();
+</script>
+{% else %}
+<div class="livro-destaque">
+  <div class="capa">📖</div>
+  <div>
+    <strong>Livro do mês</strong>
+    <p>Ainda não escolhido. Sugiram livros e votem para o clube decidir.</p>
+    <a class="botao mini" href="{{ url_for('votacao') }}">Ir para a votação</a>
+  </div>
+</div>
+{% endif %}
+
+<section class="secao-vermelha" style="margin-top: 26px;">
+  <h2>comece por aqui</h2>
+  <div class="atalhos">
+    <a class="atalho" href="{{ url_for('sugestoes') }}"><span class="icone">💡</span>sugerir livros</a>
+    <a class="atalho" href="{{ url_for('votacao') }}"><span class="icone">🗳️</span>votar</a>
+    <a class="atalho" href="{{ url_for('avaliacoes') }}"><span class="icone">⭐</span>avaliar</a>
+  </div>
+</section>
+<div class="recorte"></div>
+<div class="flores"></div>
+
+<section class="secao">
+  <h2>Avaliações recentes</h2>
+  <div class="prateleira">
+    <div class="livro-capa">📕</div>
+    <div class="livro-capa">📗</div>
+  </div>
+</section>
+{% endblock %}

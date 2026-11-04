@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Clube do Livro</title>
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+  <meta name="theme-color" content="#E8223F">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icone-180.png') }}">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Clube do Livro">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Dancing+Script:wght@600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+  <header class="topo">
+      <a href="{{ url_for('perfil') }}" class="avatar" aria-label="Meu perfil">
+    {% if minha_foto %}<img src="{{ minha_foto }}" alt="Minha foto">{% else %}{{ session.get('nome', '?')[:1]|upper }}{% endif %}
+  </a>
+    <svg class="laco" viewBox="0 0 64 40" width="56" height="36" aria-hidden="true">
+      <path d="M32 20 C20 2, 2 4, 4 20 C2 36, 20 38, 32 20 Z" fill="#F2A0B6" stroke="#E8223F" stroke-width="2"/>
+      <path d="M32 20 C44 2, 62 4, 60 20 C62 36, 44 38, 32 20 Z" fill="#F2A0B6" stroke="#E8223F" stroke-width="2"/>
+      <circle cx="32" cy="20" r="6" fill="#E8223F"/>
+    </svg>
+    <p class="marca">Clube do Livro</p>
+    <small>leituras &amp; estrelas </small>
+  </header>
+  <div class="flores"></div>
+  <main class="conteudo">
+    {% block conteudo %}{% endblock %}
+  </main>
+  <nav class="menu">
+   <nav class="menu">
+  <a href="{{ url_for('inicio') }}" class="{{ 'ativo' if request.endpoint == 'inicio' }}">📚<span>Livro</span></a>
+  <a href="{{ url_for('sugestoes') }}" class="{{ 'ativo' if request.endpoint == 'sugestoes' }}">💡<span>Sugestões</span></a>
+  <a href="{{ url_for('votacao') }}" class="{{ 'ativo' if request.endpoint == 'votacao' }}">🗳️<span>Votação</span></a>
+  <a href="{{ url_for('avaliacoes') }}" class="{{ 'ativo' if request.endpoint == 'avaliacoes' }}">⭐<span>Avaliações</span></a>
+  <a href="{{ url_for('encontro') }}" class="{{ 'ativo' if request.endpoint == 'encontro' }}">📞<span>Encontro</span></a>
+</nav>
+  </nav>
+    <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js"));
+    }
+  </script>
+</body>
+</html>

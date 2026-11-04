@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<div class="card perfil">
+  <h2>Meu perfil</h2>
+  <div class="avatar-grande" id="avatar-grande">
+    {% if minha_foto %}<img src="{{ minha_foto }}" alt="Minha foto">{% else %}{{ nome[:1]|upper }}{% endif %}
+  </div>
+  <p class="nome-perfil">{{ nome }}</p>
+  <label for="foto" class="rotulo">Escolher uma foto</label>
+  <input id="foto" type="file" accept="image/*">
+  <p id="p-aviso" class="aviso"></p>
+  <button type="button" id="salvar" class="botao cheio" disabled>Salvar foto</button>
+  {% if minha_foto %}<button type="button" id="remover" class="botao mini">Remover foto</button>{% endif %}
+</div>
+
+<script>
+const entrada = document.getElementById("foto");
+const grande = document.getElementById("avatar-grande");
+const salvar = document.getElementById("salvar");
+const remover = document.getElementById("remover");
+const pAviso = document.getElementById("p-aviso");
+let blob = null, avisoTimer;
+
+function avisar(msg) {
+  pAviso.textContent = msg;
+  clearTimeout(avisoTimer);
+  avisoTimer = setTimeout(() => { pAviso.textContent = ""; }, 4000);
+}
+
+function recortarQuadrado(arquivo, lado, qualidade) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(arquivo);
+    const img = new Image();
+    img.onload = () => {
+      const menor = Math.min(img.width, img.height);
+      const sx = (img.width - menor) / 2;
+      const sy = (img.height - menor) / 2;
+      const c = document.createElement("canvas");
+      c.width = lado;
+      c.height = lado;
+      c.getContext("2d").drawImage(img, sx, sy, menor, menor, 0, 0, lado, lado);
+      URL.revokeObjectURL(url);
+      c.toBlob(b => b ? resolve(b) : reject(new Error("falhou")), "image/jpeg", qualidade);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("imagem invalida")); };
+    img.src = url;
+  });
+}
+
+entrada.addEventListener("change", async () => {
+  blob = null;
+  salvar.disabled = true;
+  const arq = entrada.files[0];
+  if (!arq) return;
+  try {
+    blob = await recortarQuadrado(arq, 400, 0.85);
+    const img = document.createElement("img");
+    img.src = URL.createObjectURL(blob);
+    img.alt = "Prévia da foto";
+    grande.replaceChildren(img);
+    salvar.disabled = false;
+  } catch (e) {
+    avisar("Não consegui ler essa imagem. Tente outra.");
+    entrada.value = "";
+  }
+});
+
+salvar.addEventListener("click", async () => {
+  if (!blob) return;
+  salvar.disabled = true;
+  const fd = new FormData();
+  fd.append("foto", blob, "foto.jpg");
+  try {
+    const resp = await fetch("/perfil/foto", { method: "POST", body: fd });
+    const dados = await resp.json();
+    if (resp.ok) {
+      avisar("Foto salva! 💕");
+      setTimeout(() => location.reload(), 700);
+      return;
+    }
+    avisar(dados.erro || "Algo deu errado.");
+  } catch (e) {
+    avisar("Não consegui enviar. Confira a conexão.");
+  }
+  salvar.disabled = false;
+});
+
+if (remover) {
+  remover.addEventListener("click", async () => {
+    if (!confirm("Remover a sua foto?")) return;
+    await fetch("/perfil/foto", { method: "DELETE" });
+    location.reload();
+  });
+}
+</script>
+{% endblock %}
